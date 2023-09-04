@@ -1,0 +1,678 @@
+---
+title: "Heatmaps of OC markers"
+author: "Saskia Perret-Gentil"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(DESeq2) 
+library(RColorBrewer)
+library(pheatmap)
+library(org.Mm.eg.db) 
+library(clusterProfiler) 
+library(dplyr)
+library(stringr)
+```
+
+plotting heatmaps
+
+- raw counts 
+- vst 
+- vst - rowMeans
+
+```{r}
+dds <- readRDS(file="TruSeq_dds.rds")
+```
+
+applying variance stabilising transformation to the read counts:
+```{r}
+vst.dds <- vst(dds, blind = FALSE)
+```
+
+#### OC markers 
+
+```{r}
+OC_gene_set <- read.csv("../../gene_lists/OC_willy.csv")
+OC_gene_set <- OC_gene_set$X
+
+OC_gene_set <- unique(OC_gene_set)
+```
+
+### 6 weeks
+
+In the following heatmap, with only samples taken at 6 weeks after the critical defect, 
+one can appreciate that the selected osteoclast markers are differentially expressed 
+between the group treated with Alendronate and the group that was only given a vehicle. 
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+heat_map_matrix <- assay(vst.dds)[OC_gene_set, vst.dds$timepoint=="6w"]
+
+rownames(heat_map_matrix) <- bitr(rownames(heat_map_matrix), 
+                                  fromType="ENSEMBL", toType="SYMBOL", 
+                                  OrgDb="org.Mm.eg.db")$SYMBOL
+
+# re-order OC genes
+heat_map_matrix <- heat_map_matrix[c("Calcr", "Ctsk", "Dcstamp", "Ocstamp", "Mmp9", "Oscar", "Acp5", "Slc9b2", "Src", "Nfatc1", "Slc4a2", "Csf1r", "Clcn7", "Tnfrsf11a", "Itgav", "Atp6v1a", "Itgb3", "Traf6", "Slc11a2", "Fos", "Car2", "Tfrc", "Slc40a1"),]
+
+heat_map_matrix <- heat_map_matrix - rowMeans(heat_map_matrix)
+
+paletteLength <- 100
+myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+
+myBreaks <- c(seq(min(heat_map_matrix), 0, 
+                  length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(heat_map_matrix)/paletteLength, max(heat_map_matrix), 
+                  length.out=floor(paletteLength/2)))
+
+annot_sample <- as.data.frame(colData(dds)[c("coated_with", 
+                                             "operation", 
+                                             "medication")])
+
+annot_sample$coated_with <- recode_factor(annot_sample$coated_with, 
+                                          highBMP = "2.5 µg BMP2", 
+                                          lowBMP = "0.25 µg BMP2", 
+                                          lowBMPL51P = "0.25 µg BMP2 / 2.5 µg L51P")
+
+annot_sample$medication <- recode_factor(annot_sample$medication, 
+                                         vehicle = "Veh")
+
+annot_sample <- rename(annot_sample, "coated with" = coated_with)
+annot_sample <- rename(annot_sample, "+/- BP therapy" = medication)
+annot_sample <- rename(annot_sample, surgery = operation)
+
+ann_colors = list("coated with" = c("0.25 µg BMP2" = "gray50", 
+                                  "0.25 µg BMP2 / 2.5 µg L51P" = "gray35", 
+                                  "2.5 µg BMP2" = "gray20"), 
+                  surgery = c(sham = "seashell", OVX = "seashell3"), 
+                  "+/- BP therapy" = c(Veh = "ivory", ALN = "ivory3")) 
+
+# reorder the matrix how I would like it to be... 
+new_col_order <- c("sham_6w_lowBMP_1", 
+                   "sham_6w_lowBMP_2", 
+                   "sham_6w_lowBMP_3", 
+                   "sham_6w_lowBMPL51P_1", 
+                   "sham_6w_lowBMPL51P_2", 
+                   "sham_6w_lowBMPL51P_3", 
+                   "sham_6w_highBMP_1", 
+                   "sham_6w_highBMP_2", 
+                   "sham_6w_highBMP_3", 
+                   "OVX_6w_lowBMP_1", 
+                   "OVX_6w_lowBMP_2", 
+                   "OVX_6w_lowBMP_3", 
+                   "OVX_6w_lowBMPL51P_1", 
+                   "OVX_6w_lowBMPL51P_2", 
+                   "OVX_6w_lowBMPL51P_3", 
+                   "OVX_6w_highBMP_1", 
+                   "OVX_6w_highBMP_2", 
+                   "OVX_6w_highBMP_3", 
+                   "shamALN_6w_lowBMP_1", 
+                   "shamALN_6w_lowBMP_2", 
+                   "shamALN_6w_lowBMP_3", 
+                   "shamALN_6w_lowBMPL51P_1", 
+                   "shamALN_6w_lowBMPL51P_2", 
+                   "shamALN_6w_lowBMPL51P_3", 
+                   "shamALN_6w_highBMP_1", 
+                   "shamALN_6w_highBMP_2", 
+                   "shamALN_6w_highBMP_3", 
+                   "OVXALN_6w_lowBMP_1", 
+                   "OVXALN_6w_lowBMP_2", 
+                   "OVXALN_6w_lowBMP_3", 
+                   "OVXALN_6w_lowBMPL51P_1", 
+                   "OVXALN_6w_lowBMPL51P_2", 
+                   "OVXALN_6w_lowBMPL51P_3", 
+                   "OVXALN_6w_highBMP_1", 
+                   "OVXALN_6w_highBMP_2", 
+                   "OVXALN_6w_highBMP_3")
+
+heat_map_matrix <- heat_map_matrix[,new_col_order]
+
+hm_obj <- pheatmap(heat_map_matrix, border_color = NA,
+         cluster_rows=FALSE, cluster_cols=FALSE,
+         annotation_col=annot_sample, 
+         annotation_colors = ann_colors, 
+         show_rownames = TRUE, show_colnames = FALSE, 
+         color = myColor, breaks = myBreaks,
+         legend = TRUE, # scale bar
+         cellwidth = 5, 
+         cellheight = 10,
+         height = 4, width = 4, 
+         annotation_legend = FALSE,
+         filename = "Heatmap_OCmarkers_6w.png"
+         ) 
+
+``` 
+
+### 12 weeks
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+heat_map_matrix <- assay(vst.dds)[OC_gene_set, vst.dds$timepoint=="12w"]
+
+rownames(heat_map_matrix) <- bitr(rownames(heat_map_matrix), 
+                                  fromType="ENSEMBL", toType="SYMBOL", 
+                                  OrgDb="org.Mm.eg.db")$SYMBOL
+
+# re-order OC genes
+heat_map_matrix <- heat_map_matrix[c("Calcr", "Ctsk", "Dcstamp", "Ocstamp", "Mmp9", "Oscar", "Acp5", "Slc9b2", "Src", "Nfatc1", "Slc4a2", "Csf1r", "Clcn7", "Tnfrsf11a", "Itgav", "Atp6v1a", "Itgb3", "Traf6", "Slc11a2", "Fos", "Car2", "Tfrc", "Slc40a1"),]
+
+heat_map_matrix <- heat_map_matrix - rowMeans(heat_map_matrix)
+
+paletteLength <- 100
+myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+
+myBreaks <- c(seq(min(heat_map_matrix), 0, 
+                  length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(heat_map_matrix)/paletteLength, max(heat_map_matrix), 
+                  length.out=floor(paletteLength/2)))
+
+annot_sample <- as.data.frame(colData(dds)[c("coated_with", 
+                                             "operation", 
+                                             "medication")])
+
+annot_sample$coated_with <- recode_factor(annot_sample$coated_with, 
+                                          control = "0 µg BMP2 / 0 µg L51P (control)", 
+                                          L51P = "2.5 µg L51P", 
+                                          highBMP = "2.5 µg BMP2", 
+                                          lowBMP = "0.25 µg BMP2", 
+                                          lowBMPL51P = "0.25 µg BMP2 / 2.5 µg L51P")
+
+annot_sample$medication <- recode_factor(annot_sample$medication, 
+                                         vehicle = "Veh")
+
+annot_sample <- rename(annot_sample, "coated with" = coated_with)
+annot_sample <- rename(annot_sample, "+/- BP therapy" = medication)
+annot_sample <- rename(annot_sample, surgery = operation)
+
+ann_colors = list("coated with" = c("0 µg BMP2 / 0 µg L51P (control)" = "gray80", 
+                                  "2.5 µg L51P" = "gray65", 
+                                  "0.25 µg BMP2" = "gray50",
+                                  "0.25 µg BMP2 / 2.5 µg L51P" = "gray35", 
+                                  "2.5 µg BMP2" = "gray20"), 
+                  surgery = c(sham = "seashell", OVX = "seashell3"), 
+                  "+/- BP therapy" = c(Veh = "ivory", ALN = "ivory3")) 
+
+# reorder the matrix how I would like it to be... 
+new_col_order <- c("sham_12w_Control_1", 
+                   "sham_12w_Control_2", 
+                   "sham_12w_Control_3", 
+                   "sham_12w_L51P_1", 
+                   "sham_12w_L51P_2", 
+                   "sham_12w_L51P_3", 
+                   "sham_12w_lowBMP_1", 
+                   "sham_12w_lowBMP_2", 
+                   "sham_12w_lowBMP_3", 
+                   "sham_12w_lowBMPL51P_1", 
+                   "sham_12w_lowBMPL51P_2", 
+                   "sham_12w_lowBMPL51P_3", 
+                   "sham_12w_highBMP_1", 
+                   "sham_12w_highBMP_2", 
+                   "sham_12w_highBMP_3", 
+                   "OVX_12w_Control_1", 
+                   "OVX_12w_Control_2", 
+                   "OVX_12w_Control_3", 
+                   "OVX_12w_L51P_1", 
+                   "OVX_12w_L51P_2", 
+                   "OVX_12w_L51P_3", 
+                   "OVX_12w_lowBMP_1", 
+                   "OVX_12w_lowBMP_2", 
+                   "OVX_12w_lowBMP_3", 
+                   "OVX_12w_lowBMPL51P_1", 
+                   "OVX_12w_lowBMPL51P_2", 
+                   "OVX_12w_lowBMPL51P_3", 
+                   "OVX_12w_highBMP_1", 
+                   "OVX_12w_highBMP_2", 
+                   "OVX_12w_highBMP_3", 
+                   "shamALN_12w_Control_1", 
+                   "shamALN_12w_Control_2", 
+                   "shamALN_12w_Control_3", 
+                   "shamALN_12w_L51P_1", 
+                   "shamALN_12w_L51P_2", 
+                   "shamALN_12w_L51P_3", 
+                   "shamALN_12w_lowBMP_1", 
+                   "shamALN_12w_lowBMP_2", 
+                   "shamALN_12w_lowBMP_3", 
+                   "shamALN_12w_lowBMPL51P_1", 
+                   "shamALN_12w_lowBMPL51P_2", 
+                   "shamALN_12w_lowBMPL51P_3", 
+                   "shamALN_12w_highBMP_1", 
+                   "shamALN_12w_highBMP_2", 
+                   "shamALN_12w_highBMP_3", 
+                   "OVXALN_12w_Control_1", 
+                   "OVXALN_12w_Control_2", 
+                   "OVXALN_12w_Control_3", 
+                   "OVXALN_12w_L51P_1", 
+                   "OVXALN_12w_L51P_2", 
+                   "OVXALN_12w_L51P_3", 
+                   "OVXALN_12w_lowBMP_1", 
+                   "OVXALN_12w_lowBMP_2", 
+                   "OVXALN_12w_lowBMP_3", 
+                   "OVXALN_12w_lowBMPL51P_1", 
+                   "OVXALN_12w_lowBMPL51P_2", 
+                   "OVXALN_12w_lowBMPL51P_3", 
+                   "OVXALN_12w_highBMP_1", 
+                   "OVXALN_12w_highBMP_2", 
+                   "OVXALN_12w_highBMP_3")
+
+heat_map_matrix <- heat_map_matrix[,new_col_order]
+
+hm_obj <- pheatmap(heat_map_matrix, border_color = NA,
+         cluster_rows=FALSE, cluster_cols=FALSE,
+         annotation_col=annot_sample, 
+         annotation_colors = ann_colors, 
+         show_rownames = TRUE, show_colnames = FALSE, 
+         color = myColor, breaks = myBreaks,
+         legend = TRUE, # scale bar
+         cellwidth = 5, 
+         cellheight = 10,
+         height = 4, width = 9, 
+         filename = "Heatmap_OCmarkers_12w.png"
+         ) 
+
+``` 
+
+### Alendronate 
+
+```{r, message=FALSE, echo=FALSE, fig.height=5, fig.align='center'}
+
+heat_map_matrix <- assay(vst.dds)[OC_gene_set, vst.dds$medication=="ALN"]
+
+rownames(heat_map_matrix) <- bitr(rownames(heat_map_matrix), 
+                                  fromType="ENSEMBL", toType="SYMBOL", 
+                                  OrgDb="org.Mm.eg.db")$SYMBOL
+
+# re-order OC genes
+heat_map_matrix <- heat_map_matrix[c("Calcr", "Ctsk", "Dcstamp", "Ocstamp", "Mmp9", "Oscar", "Acp5", "Slc9b2", "Src", "Nfatc1", "Slc4a2", "Csf1r", "Clcn7", "Tnfrsf11a", "Itgav", "Atp6v1a", "Itgb3", "Traf6", "Slc11a2", "Fos", "Car2", "Tfrc", "Slc40a1"),]
+
+heat_map_matrix <- heat_map_matrix - rowMeans(heat_map_matrix)
+
+paletteLength <- 100
+myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+
+myBreaks <- c(seq(min(heat_map_matrix), 0, 
+                  length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(heat_map_matrix)/paletteLength, max(heat_map_matrix), 
+                  length.out=floor(paletteLength/2)))
+
+annot_sample <- as.data.frame(colData(dds)[c("coated_with", 
+                                             "operation", 
+                                             "timepoint")])
+
+annot_sample$coated_with <- recode_factor(annot_sample$coated_with, 
+                                          control = "0 µg BMP2 / 0 µg L51P (control)", 
+                                          L51P = "2.5 µg L51P", 
+                                          highBMP = "2.5 µg BMP2", 
+                                          lowBMP = "0.25 µg BMP2", 
+                                          lowBMPL51P = "0.25 µg BMP2 / 2.5 µg L51P")
+annot_sample$timepoint <- recode_factor(annot_sample$timepoint, 
+                                        "6w" = "6 weeks", 
+                                        "12w" = "12 weeks")
+
+annot_sample <- rename(annot_sample, "coated with" = coated_with)
+annot_sample <- rename(annot_sample, surgery = operation)
+
+ann_colors = list("coated with" = c("0 µg BMP2 / 0 µg L51P (control)" = "gray80", 
+                                  "2.5 µg L51P" = "gray65", 
+                                  "0.25 µg BMP2" = "gray50",
+                                  "0.25 µg BMP2 / 2.5 µg L51P" = "gray35", 
+                                  "2.5 µg BMP2" = "gray20"), 
+                  surgery = c(sham = "seashell", OVX = "seashell3"), 
+                  timepoint = c("6 weeks" = "snow2", "12 weeks" = "snow4")) 
+
+# reorder the matrix how I would like it to be... 
+new_col_order <- c("shamALN_6w_lowBMP_1", 
+                   "shamALN_6w_lowBMP_2", 
+                   "shamALN_6w_lowBMP_3", 
+                   "OVXALN_6w_lowBMP_1", 
+                   "OVXALN_6w_lowBMP_2", 
+                   "OVXALN_6w_lowBMP_3", 
+                   "shamALN_6w_lowBMPL51P_1", 
+                   "shamALN_6w_lowBMPL51P_2", 
+                   "shamALN_6w_lowBMPL51P_3", 
+                   "OVXALN_6w_lowBMPL51P_1", 
+                   "OVXALN_6w_lowBMPL51P_2", 
+                   "OVXALN_6w_lowBMPL51P_3", 
+                   "shamALN_6w_highBMP_1", 
+                   "shamALN_6w_highBMP_2", 
+                   "shamALN_6w_highBMP_3", 
+                   "OVXALN_6w_highBMP_1", 
+                   "OVXALN_6w_highBMP_2", 
+                   "OVXALN_6w_highBMP_3", 
+                   "shamALN_12w_Control_1", 
+                   "shamALN_12w_Control_2", 
+                   "shamALN_12w_Control_3", 
+                   "OVXALN_12w_Control_1", 
+                   "OVXALN_12w_Control_2", 
+                   "OVXALN_12w_Control_3", 
+                   "shamALN_12w_L51P_1", 
+                   "shamALN_12w_L51P_2", 
+                   "shamALN_12w_L51P_3", 
+                   "OVXALN_12w_L51P_1", 
+                   "OVXALN_12w_L51P_2", 
+                   "OVXALN_12w_L51P_3", 
+                   "shamALN_12w_lowBMP_1", 
+                   "shamALN_12w_lowBMP_2", 
+                   "shamALN_12w_lowBMP_3", 
+                   "OVXALN_12w_lowBMP_1", 
+                   "OVXALN_12w_lowBMP_2", 
+                   "OVXALN_12w_lowBMP_3", 
+                   "shamALN_12w_lowBMPL51P_1", 
+                   "shamALN_12w_lowBMPL51P_2", 
+                   "shamALN_12w_lowBMPL51P_3", 
+                   "OVXALN_12w_lowBMPL51P_1", 
+                   "OVXALN_12w_lowBMPL51P_2", 
+                   "OVXALN_12w_lowBMPL51P_3", 
+                   "shamALN_12w_highBMP_1", 
+                   "shamALN_12w_highBMP_2", 
+                   "shamALN_12w_highBMP_3", 
+                   "OVXALN_12w_highBMP_1", 
+                   "OVXALN_12w_highBMP_2", 
+                   "OVXALN_12w_highBMP_3")
+
+heat_map_matrix <- heat_map_matrix[,new_col_order]
+
+hm_obj <- pheatmap(heat_map_matrix, border_color = NA,
+         cluster_rows=FALSE, cluster_cols=FALSE,
+         annotation_col=annot_sample, 
+         annotation_colors = ann_colors, 
+         show_rownames = TRUE, show_colnames = FALSE, 
+         color = myColor, breaks = myBreaks,
+         legend = TRUE, # scale bar
+         cellwidth = 5, 
+         cellheight = 10,
+         height = 4, width = 5, 
+         annotation_legend = FALSE,
+         filename = "Heatmap_OCmarkers_ALN.png"
+         ) 
+
+``` 
+
+### vehicle
+
+```{r, message=FALSE, echo=FALSE, fig.height=5, fig.align='center'}
+
+heat_map_matrix <- assay(vst.dds)[OC_gene_set, vst.dds$medication=="vehicle"]
+
+rownames(heat_map_matrix) <- bitr(rownames(heat_map_matrix), 
+                                  fromType="ENSEMBL", toType="SYMBOL", 
+                                  OrgDb="org.Mm.eg.db")$SYMBOL
+
+# re-order OC genes
+heat_map_matrix <- heat_map_matrix[c("Calcr", "Ctsk", "Dcstamp", "Ocstamp", "Mmp9", "Oscar", "Acp5", "Slc9b2", "Src", "Nfatc1", "Slc4a2", "Csf1r", "Clcn7", "Tnfrsf11a", "Itgav", "Atp6v1a", "Itgb3", "Traf6", "Slc11a2", "Fos", "Car2", "Tfrc", "Slc40a1"),]
+
+heat_map_matrix <- heat_map_matrix - rowMeans(heat_map_matrix)
+
+paletteLength <- 100
+myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+
+myBreaks <- c(seq(min(heat_map_matrix), 0, 
+                  length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(heat_map_matrix)/paletteLength, max(heat_map_matrix), 
+                  length.out=floor(paletteLength/2)))
+
+annot_sample <- as.data.frame(colData(dds)[c("coated_with", 
+                                             "operation", 
+                                             "timepoint")])
+
+annot_sample$coated_with <- recode_factor(annot_sample$coated_with, 
+                                          control = "0 µg BMP2 / 0 µg L51P (control)", 
+                                          L51P = "2.5 µg L51P", 
+                                          highBMP = "2.5 µg BMP2", 
+                                          lowBMP = "0.25 µg BMP2", 
+                                          lowBMPL51P = "0.25 µg BMP2 / 2.5 µg L51P")
+annot_sample$timepoint <- recode_factor(annot_sample$timepoint, 
+                                        "6w" = "6 weeks", 
+                                        "12w" = "12 weeks")
+
+annot_sample <- rename(annot_sample, "coated with" = coated_with)
+annot_sample <- rename(annot_sample, surgery = operation)
+
+ann_colors = list("coated with" = c("0 µg BMP2 / 0 µg L51P (control)" = "gray80", 
+                                  "2.5 µg L51P" = "gray65", 
+                                  "0.25 µg BMP2" = "gray50",
+                                  "0.25 µg BMP2 / 2.5 µg L51P" = "gray35", 
+                                  "2.5 µg BMP2" = "gray20"), 
+                  surgery = c(sham = "seashell", OVX = "seashell3"), 
+                  timepoint = c("6 weeks" = "snow2", "12 weeks" = "snow4")) 
+
+# reorder the matrix how I would like it to be... 
+new_col_order <- c("sham_6w_lowBMP_1", 
+                   "sham_6w_lowBMP_2", 
+                   "sham_6w_lowBMP_3", 
+                   "OVX_6w_lowBMP_1", 
+                   "OVX_6w_lowBMP_2", 
+                   "OVX_6w_lowBMP_3", 
+                   "sham_6w_lowBMPL51P_1", 
+                   "sham_6w_lowBMPL51P_2", 
+                   "sham_6w_lowBMPL51P_3", 
+                   "OVX_6w_lowBMPL51P_1", 
+                   "OVX_6w_lowBMPL51P_2", 
+                   "OVX_6w_lowBMPL51P_3", 
+                   "sham_6w_highBMP_1", 
+                   "sham_6w_highBMP_2", 
+                   "sham_6w_highBMP_3", 
+                   "OVX_6w_highBMP_1", 
+                   "OVX_6w_highBMP_2", 
+                   "OVX_6w_highBMP_3", 
+                   "sham_12w_Control_1", 
+                   "sham_12w_Control_2", 
+                   "sham_12w_Control_3", 
+                   "OVX_12w_Control_1", 
+                   "OVX_12w_Control_2", 
+                   "OVX_12w_Control_3", 
+                   "sham_12w_L51P_1", 
+                   "sham_12w_L51P_2", 
+                   "sham_12w_L51P_3", 
+                   "OVX_12w_L51P_1", 
+                   "OVX_12w_L51P_2", 
+                   "OVX_12w_L51P_3", 
+                   "sham_12w_lowBMP_1", 
+                   "sham_12w_lowBMP_2", 
+                   "sham_12w_lowBMP_3", 
+                   "OVX_12w_lowBMP_1", 
+                   "OVX_12w_lowBMP_2", 
+                   "OVX_12w_lowBMP_3", 
+                   "sham_12w_lowBMPL51P_1", 
+                   "sham_12w_lowBMPL51P_2", 
+                   "sham_12w_lowBMPL51P_3", 
+                   "OVX_12w_lowBMPL51P_1", 
+                   "OVX_12w_lowBMPL51P_2", 
+                   "OVX_12w_lowBMPL51P_3", 
+                   "sham_12w_highBMP_1", 
+                   "sham_12w_highBMP_2", 
+                   "sham_12w_highBMP_3", 
+                   "OVX_12w_highBMP_1", 
+                   "OVX_12w_highBMP_2", 
+                   "OVX_12w_highBMP_3")
+
+
+heat_map_matrix <- heat_map_matrix[,new_col_order]
+
+hm_obj <- pheatmap(heat_map_matrix, border_color = NA,
+         cluster_rows=FALSE, cluster_cols=FALSE,
+         annotation_col=annot_sample, 
+         annotation_colors = ann_colors, 
+         show_rownames = TRUE, show_colnames = FALSE, 
+         color = myColor, breaks = myBreaks,
+         legend = TRUE, # scale bar
+         cellwidth = 5, 
+         cellheight = 10,
+         height = 4, width = 8, 
+         filename = "Heatmap_OCmarkers_vehicle.png"
+         ) 
+
+``` 
+
+### with every samples
+
+```{r, message=FALSE, echo=FALSE, fig.align='center'}
+
+heat_map_matrix <- assay(vst.dds)[OC_gene_set,]
+
+rownames(heat_map_matrix) <- bitr(rownames(heat_map_matrix), 
+                                  fromType="ENSEMBL", toType="SYMBOL", 
+                                  OrgDb="org.Mm.eg.db")$SYMBOL
+
+# reorder
+heat_map_matrix <- heat_map_matrix[c("Calcr", "Ctsk", "Dcstamp", "Ocstamp", "Mmp9", "Oscar", "Acp5", "Slc9b2", "Src", "Nfatc1", "Slc4a2", "Csf1r", "Clcn7", "Tnfrsf11a", "Itgav", "Atp6v1a", "Itgb3", "Traf6", "Slc11a2", "Fos", "Car2", "Tfrc", "Slc40a1"),]
+#heat_map_matrix <- heat_map_matrix[c("Fos", "Car2", "Tfrc", "Slc40a1"),]
+
+heat_map_matrix <- heat_map_matrix - rowMeans(heat_map_matrix)
+
+paletteLength <- 100
+myColor <- colorRampPalette(c("blue", "white", "red"))(paletteLength)
+
+myBreaks <- c(seq(min(heat_map_matrix), 0, 
+                  length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(heat_map_matrix)/paletteLength, max(heat_map_matrix), 
+                  length.out=floor(paletteLength/2)))
+
+annot_sample <- as.data.frame(colData(dds)[c("coated_with", 
+                                             "operation", 
+                                             "timepoint", 
+                                             "medication")])
+
+annot_sample$coated_with <- recode_factor(annot_sample$coated_with, 
+                                          control = "0 µg BMP2 / 0 µg L51P (control)", 
+                                          L51P = "2.5 µg L51P", 
+                                          highBMP = "2.5 µg BMP2", 
+                                          lowBMP = "0.25 µg BMP2", 
+                                          lowBMPL51P = "0.25 µg BMP2 / 2.5 µg L51P")
+
+annot_sample$timepoint <- recode_factor(annot_sample$timepoint, 
+                                        "6w" = "6 weeks", 
+                                        "12w" = "12 weeks")
+
+annot_sample$medication <- recode_factor(annot_sample$medication, 
+                                         vehicle = "Veh") 
+
+annot_sample <- rename(annot_sample, "coated with" = coated_with)
+annot_sample <- rename(annot_sample, surgery = operation) 
+annot_sample <- rename(annot_sample, "+/- BP therapy" = medication) 
+
+ann_colors = list("coated with" = c("0 µg BMP2 / 0 µg L51P (control)" = "gray80", 
+                                  "2.5 µg L51P" = "gray65", 
+                                  "0.25 µg BMP2" = "gray50",
+                                  "0.25 µg BMP2 / 2.5 µg L51P" = "gray35", 
+                                  "2.5 µg BMP2" = "gray20"), 
+                  surgery = c(sham = "seashell", OVX = "seashell3"), 
+                  timepoint = c("6 weeks" = "snow2", "12 weeks" = "snow4"), 
+                  "+/- BP therapy" = c(Veh = "ivory", ALN = "ivory3")) 
+
+# reorder the matrix how I would like it to be... 
+new_col_order <- c("sham_6w_lowBMP_1", 
+                   "sham_6w_lowBMP_2", 
+                   "sham_6w_lowBMP_3", 
+                   "OVX_6w_lowBMP_1", 
+                   "OVX_6w_lowBMP_2", 
+                   "OVX_6w_lowBMP_3", 
+                   "sham_6w_lowBMPL51P_1", 
+                   "sham_6w_lowBMPL51P_2", 
+                   "sham_6w_lowBMPL51P_3", 
+                   "OVX_6w_lowBMPL51P_1", 
+                   "OVX_6w_lowBMPL51P_2", 
+                   "OVX_6w_lowBMPL51P_3", 
+                   "sham_6w_highBMP_1", 
+                   "sham_6w_highBMP_2", 
+                   "sham_6w_highBMP_3", 
+                   "OVX_6w_highBMP_1", 
+                   "OVX_6w_highBMP_2", 
+                   "OVX_6w_highBMP_3", 
+                   "shamALN_6w_lowBMP_1", 
+                   "shamALN_6w_lowBMP_2", 
+                   "shamALN_6w_lowBMP_3", 
+                   "OVXALN_6w_lowBMP_1", 
+                   "OVXALN_6w_lowBMP_2", 
+                   "OVXALN_6w_lowBMP_3", 
+                   "shamALN_6w_lowBMPL51P_1", 
+                   "shamALN_6w_lowBMPL51P_2", 
+                   "shamALN_6w_lowBMPL51P_3", 
+                   "OVXALN_6w_lowBMPL51P_1", 
+                   "OVXALN_6w_lowBMPL51P_2", 
+                   "OVXALN_6w_lowBMPL51P_3", 
+                   "shamALN_6w_highBMP_1", 
+                   "shamALN_6w_highBMP_2", 
+                   "shamALN_6w_highBMP_3", 
+                   "OVXALN_6w_highBMP_1", 
+                   "OVXALN_6w_highBMP_2", 
+                   "OVXALN_6w_highBMP_3", 
+                   "sham_12w_Control_1", 
+                   "sham_12w_Control_2", 
+                   "sham_12w_Control_3", 
+                   "OVX_12w_Control_1", 
+                   "OVX_12w_Control_2", 
+                   "OVX_12w_Control_3", 
+                   "sham_12w_L51P_1", 
+                   "sham_12w_L51P_2", 
+                   "sham_12w_L51P_3", 
+                   "OVX_12w_L51P_1", 
+                   "OVX_12w_L51P_2", 
+                   "OVX_12w_L51P_3", 
+                   "sham_12w_lowBMP_1", 
+                   "sham_12w_lowBMP_2", 
+                   "sham_12w_lowBMP_3", 
+                   "OVX_12w_lowBMP_1", 
+                   "OVX_12w_lowBMP_2", 
+                   "OVX_12w_lowBMP_3", 
+                   "sham_12w_lowBMPL51P_1", 
+                   "sham_12w_lowBMPL51P_2", 
+                   "sham_12w_lowBMPL51P_3", 
+                   "OVX_12w_lowBMPL51P_1", 
+                   "OVX_12w_lowBMPL51P_2", 
+                   "OVX_12w_lowBMPL51P_3", 
+                   "sham_12w_highBMP_1", 
+                   "sham_12w_highBMP_2", 
+                   "sham_12w_highBMP_3", 
+                   "OVX_12w_highBMP_1", 
+                   "OVX_12w_highBMP_2", 
+                   "OVX_12w_highBMP_3", 
+                   "shamALN_12w_Control_1", 
+                   "shamALN_12w_Control_2", 
+                   "shamALN_12w_Control_3", 
+                   "OVXALN_12w_Control_1", 
+                   "OVXALN_12w_Control_2", 
+                   "OVXALN_12w_Control_3", 
+                   "shamALN_12w_L51P_1", 
+                   "shamALN_12w_L51P_2", 
+                   "shamALN_12w_L51P_3", 
+                   "OVXALN_12w_L51P_1", 
+                   "OVXALN_12w_L51P_2", 
+                   "OVXALN_12w_L51P_3", 
+                   "shamALN_12w_lowBMP_1", 
+                   "shamALN_12w_lowBMP_2", 
+                   "shamALN_12w_lowBMP_3", 
+                   "OVXALN_12w_lowBMP_1", 
+                   "OVXALN_12w_lowBMP_2", 
+                   "OVXALN_12w_lowBMP_3", 
+                   "shamALN_12w_lowBMPL51P_1", 
+                   "shamALN_12w_lowBMPL51P_2", 
+                   "shamALN_12w_lowBMPL51P_3", 
+                   "OVXALN_12w_lowBMPL51P_1", 
+                   "OVXALN_12w_lowBMPL51P_2", 
+                   "OVXALN_12w_lowBMPL51P_3", 
+                   "shamALN_12w_highBMP_1", 
+                   "shamALN_12w_highBMP_2", 
+                   "shamALN_12w_highBMP_3", 
+                   "OVXALN_12w_highBMP_1", 
+                   "OVXALN_12w_highBMP_2", 
+                   "OVXALN_12w_highBMP_3")
+
+heat_map_matrix <- heat_map_matrix[,new_col_order]
+
+hm_obj <- pheatmap(heat_map_matrix, border_color = NA,
+         cluster_rows=FALSE, cluster_cols=FALSE,
+         annotation_col=annot_sample, 
+         annotation_colors = ann_colors, 
+         show_rownames = TRUE, show_colnames = FALSE, 
+         color = myColor, breaks = myBreaks,
+         legend = TRUE, # scale bar
+         cellwidth = 5, 
+         cellheight = 10,
+         #height = 4, width = 8, 
+         filename = "Heatmap_OCmarkers.png"
+         ) 
+``` 

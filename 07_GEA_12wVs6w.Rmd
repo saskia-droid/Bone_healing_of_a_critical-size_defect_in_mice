@@ -1,0 +1,91 @@
+---
+title: "12w vs 6w"
+author: "Saskia Perret-Gentil"
+date: "7/20/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(DESeq2) 
+library(RColorBrewer)
+library(biomaRt)
+library(pheatmap)
+library(org.Mm.eg.db) 
+library(enrichplot)
+library(clusterProfiler)
+library(lemon)
+
+source("63_helper_functions.R")
+```
+
+```{r, echo=FALSE}
+knit_print.data.frame <- lemon_print
+```
+
+```{r}
+dds <- readRDS(file="TruSeq_dds.rds")
+```
+
+```{r} 
+res <- results(dds, contrast=c("timepoint", "12w", "6w"))
+sig <- res[!is.na(res$padj) & res$padj < 0.05 & 
+             abs(res$log2FoldChange) > 1,]; 
+up <- subset(sig, log2FoldChange > 0) 
+down <- subset(sig, log2FoldChange < 0) 
+```
+
+`r nrow(sig)` genes are differently regulated.
+
+`r nrow(up)` genes are up-regulated.
+`r nrow(down)` genes are down-regulated.
+
+#### overrepresentation analysis of up-regulated genes
+
+```{r, fig.height = 6, fig.width = 8}
+genes <- row.names(up)
+universe <- row.names(res)
+
+ego <- clusterProfiler::enrichGO( gene          = genes,
+                                  universe      = universe,
+                                  OrgDb         = org.Mm.eg.db,
+                                  ont           = "BP", # BP: biological process
+                                  pAdjustMethod = "BH",
+                                  pvalueCutoff  = 0.01,
+                                  qvalueCutoff  = 0.05,
+                                  readable      = TRUE,
+                                  keyType       = 'ENSEMBL')
+
+dotplot(ego, showCategory=10) 
+ego[]
+```
+
+#### overrepresentation analysis of down-regulated genes
+
+```{r, fig.height = 6, fig.width = 8}
+genes <- row.names(down)
+universe <- row.names(res)
+
+ego <- clusterProfiler::enrichGO( gene          = genes,
+                                  universe      = universe,
+                                  OrgDb         = org.Mm.eg.db,
+                                  ont           = "BP", # BP: biological process
+                                  pAdjustMethod = "BH",
+                                  pvalueCutoff  = 0.01,
+                                  qvalueCutoff  = 0.05,
+                                  readable      = TRUE,
+                                  keyType       = 'ENSEMBL')
+
+dotplot(ego, showCategory=10) 
+ego[]
+```
+
+
+
+
+
+
+

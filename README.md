@@ -1,1 +1,4 @@
-# Bone_healing_of_a_critical-size_defect_in_mice
+# Bone healing of a critical-size defect in mice
+
+This repository contains the script used for the gene expression analysis 
+of bone tissue during healing under different conditions.
